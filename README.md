@@ -4,30 +4,23 @@
 > **Production-grade CI/CD for static sites.**  
 > Build once. Verify performance. Deploy everywhere.
 
-# Usage #
-```
-name: Super Ultra Deploy
+## Usage
+
+```yaml
+name: Deploy
 
 on:
   push:
-    branches:
-      - main
-
-  pull_request:
+    branches: [main]
 
 jobs:
   deploy:
 
-    runs-on: ubuntu-latest
+    uses: zhjpwlj/ultimate-deploy-system/.github/workflows/super-ultra.yml@v1
 
-    steps:
-
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: 🚀 Super Ultra Typescript Deploy
-        uses: zhjpwlj/ultimate-deploy-system@1.0.3
-
+    secrets:
+      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+      NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
 ```
 
 # Description #
