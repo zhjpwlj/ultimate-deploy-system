@@ -1,20 +1,34 @@
 name: Super Ultra Typescript Deploy
 
 on:
-
   workflow_call:
     inputs:
       target:
         required: false
         type: string
         default: both
-
       mode:
         required: false
         type: string
         default: production
 
   workflow_dispatch:
+    inputs:
+      target:
+        description: Deploy target
+        type: choice
+        options:
+          - both
+          - github-pages
+          - netlify
+        default: both
+      mode:
+        description: Deployment mode
+        type: choice
+        options:
+          - preview
+          - production
+        default: production
 
   push:
     branches: [main]
@@ -39,7 +53,6 @@ concurrency:
 jobs:
 
   build:
-
     runs-on: ubuntu-latest
 
     steps:
@@ -74,8 +87,8 @@ jobs:
           name: build
           path: dist
 
-  bundle-analysis:
 
+  bundle-analysis:
     needs: build
     runs-on: ubuntu-latest
 
@@ -89,7 +102,6 @@ jobs:
       - name: Bundle size check
         run: |
           SIZE=$(du -sk dist | cut -f1)
-
           echo "Bundle size: $SIZE KB"
 
           if [ "$SIZE" -gt "${{ env.BUNDLE_LIMIT_KB }}" ]; then
@@ -101,9 +113,13 @@ jobs:
         run: |
           find dist -type f -name "*.js" -exec du -h {} \;
 
+
   netlify-preview:
 
-    if: ${{ inputs.target == 'both' || inputs.target == 'netlify' }}
+    if: |
+      github.event_name == 'push' ||
+      inputs.target == 'both' ||
+      inputs.target == 'netlify'
 
     needs: bundle-analysis
     runs-on: ubuntu-latest
@@ -131,13 +147,17 @@ jobs:
             --auth=$NETLIFY_AUTH_TOKEN \
             --site=$NETLIFY_SITE_ID)
 
-          URL=$(echo $RESP | jq -r '.deploy_url')
+          URL=$(echo "$RESP" | jq -r '.deploy_url')
 
           echo "url=$URL" >> $GITHUB_OUTPUT
 
+
   github-pages:
 
-    if: ${{ inputs.target == 'both' || inputs.target == 'github-pages' }}
+    if: |
+      github.event_name == 'push' ||
+      inputs.target == 'both' ||
+      inputs.target == 'github-pages'
 
     needs: bundle-analysis
     runs-on: ubuntu-latest
@@ -160,10 +180,13 @@ jobs:
 
       - uses: actions/deploy-pages@v4
 
+
   lighthouse:
 
-    needs: [netlify-preview]
+    needs: netlify-preview
     runs-on: ubuntu-latest
+
+    if: needs.netlify-preview.outputs.preview_url != ''
 
     steps:
 
@@ -173,7 +196,7 @@ jobs:
         run: |
           URL="${{ needs.netlify-preview.outputs.preview_url }}"
 
-          lighthouse $URL \
+          lighthouse "$URL" \
             --chrome-flags="--headless" \
             --output=json \
             --output-path=report.json
@@ -182,7 +205,6 @@ jobs:
         id: score
         run: |
           SCORE=$(jq '.categories.performance.score*100|floor' report.json)
-
           echo "score=$SCORE" >> $GITHUB_OUTPUT
 
       - uses: actions/upload-artifact@v4
@@ -190,11 +212,14 @@ jobs:
           name: lighthouse
           path: report.json
 
+
   pr-comment:
 
-    if: ${{ github.event_name == 'pull_request' }}
+    if: github.event_name == 'pull_request'
 
-    needs: [netlify-preview, lighthouse]
+    needs:
+      - netlify-preview
+      - lighthouse
 
     runs-on: ubuntu-latest
 
