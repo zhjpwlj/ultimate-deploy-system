@@ -25,5 +25,5 @@ runs:
       run: |
         echo "🚀 Super Ultra Typescript Deploy"
         echo "Use the reusable workflow:"
-        echo "uses: zhjpwlj/ultimate-deploy-system/.github/workflows/super-ultra.yml@v1"
+        echo "uses: zhjpwlj/ultimate-deploy-system/.github/workflows/workflow.yml@v2.0.0"
       shell: bash
